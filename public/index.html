@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131b">
+  <title>Ai — Chat</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">A</span><div><h1>Ai</h1><p>Independent assistant</p></div></div>
+      <button id="clear-chat" class="subtle-button" type="button">Clear chat</button>
+    </header>
+    <section id="messages" class="messages" aria-live="polite">
+      <article class="message assistant">
+        <div class="avatar">A</div>
+        <div class="bubble"><strong>Ai</strong><p>Hi. I'm Ai. I'm running locally in this project. Ask me a question or type <code>help</code>.</p></div>
+      </article>
+    </section>
+    <form id="chat-form" class="composer">
+      <label class="sr-only" for="message-input">Message Ai</label>
+      <textarea id="message-input" rows="1" maxlength="4000" placeholder="Message Ai..." autocomplete="off" required></textarea>
+      <button id="send-button" type="submit" aria-label="Send message">Send</button>
+    </form>
+    <footer><span id="status">Connecting…</span><span>Local engine · No external AI API</span></footer>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
