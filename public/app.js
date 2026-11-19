@@ -81,7 +81,7 @@ async function loadModel() {
   loadButton.textContent = "Loading model…";
   statusText.textContent = "Downloading model files. Keep this page open…";
   try {
-    const { CreateMLCEngine } = await import("https://esm.sh/@mlc-ai/web-llm@0.2.89");
+    const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.89");
     engine = await CreateMLCEngine(MODEL_ID, {
       initProgressCallback: progress => {
         const detail = progress.text || "Preparing local model…";
