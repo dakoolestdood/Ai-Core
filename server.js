@@ -2,7 +2,6 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
-const { generateReply } = require("./ai");
 
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, "public");
@@ -15,69 +14,29 @@ const MIME = {
   ".svg": "image/svg+xml"
 };
 
-function send(res, status, data, type = "application/json; charset=utf-8") {
-  res.writeHead(status, {
-    "Content-Type": type,
-    "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-store"
-  });
-  res.end(type.startsWith("application/json") ? JSON.stringify(data) : data);
-}
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", chunk => {
-      body += chunk;
-      if (body.length > 64 * 1024) {
-        reject(new Error("Request too large"));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      try { resolve(JSON.parse(body || "{}")); }
-      catch { reject(new Error("Invalid JSON")); }
-    });
-    req.on("error", reject);
-  });
-}
-
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
-
-  if (req.method === "GET" && url.pathname === "/api/health") {
-    return send(res, 200, { ok: true, name: "Ai", mode: "local-rule-engine" });
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/chat") {
-    try {
-      const body = await readBody(req);
-      const message = String(body.message || "").trim().slice(0, 4000);
-      const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
-      if (!message) return send(res, 400, { error: "Message cannot be empty." });
-
-      const reply = generateReply(message, history);
-      return send(res, 200, { reply, mode: "local-rule-engine" });
-    } catch (error) {
-      return send(res, 400, { error: error.message || "Could not process the message." });
-    }
-  }
-
   if (req.method !== "GET" && req.method !== "HEAD") {
-    return send(res, 405, { error: "Method not allowed." });
+    res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+    return res.end("Method not allowed.");
   }
 
   const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname).replace(/^\/+/, "");
   const filePath = path.resolve(PUBLIC, requested);
   if (!filePath.startsWith(PUBLIC + path.sep) && filePath !== PUBLIC) {
-    return send(res, 403, { error: "Forbidden." });
+    res.writeHead(403);
+    return res.end("Forbidden.");
   }
 
   fs.readFile(filePath, (error, data) => {
-    if (error) return send(res, 404, { error: "Not found." });
+    if (error) {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+      return res.end("Not found.");
+    }
     res.writeHead(200, {
       "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
-      "X-Content-Type-Options": "nosniff"
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache"
     });
     if (req.method === "HEAD") return res.end();
     res.end(data);
@@ -85,5 +44,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Ai is running on port ${PORT}`);
+  console.log(`Ai website is running on port ${PORT}`);
+  console.log("AI inference runs in the browser on the user's device.");
 });
