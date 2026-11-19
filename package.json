@@ -1,0 +1,13 @@
+{
+  "name": "ai-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ai - an independent, API-free starter assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
