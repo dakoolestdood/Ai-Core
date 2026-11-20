@@ -11,10 +11,21 @@ function applyName(){$("brand-name").textContent=aiName;$("history-brand").textC
 function message(role,content){const a=document.createElement("article");a.className="message "+role;const av=document.createElement("div");av.className="avatar";av.textContent=role==="assistant"?aiName[0].toUpperCase():"You";const b=document.createElement("div");b.className="bubble";const l=document.createElement("strong");l.textContent=role==="assistant"?aiName:"You";const p=document.createElement("p");p.textContent=content;b.append(l,p);a.append(av,b);$("messages").append(a);$("messages").scrollTop=$("messages").scrollHeight;return p}
 function renderMessages(){const h=$("messages");h.replaceChildren();const c=activeChat();if(!c||!c.messages.length){const w=document.createElement("div");w.className="welcome";const m=document.createElement("div");m.className="welcome-mark";m.textContent=aiName[0].toUpperCase();const t=document.createElement("h2");t.textContent="What can I help with?";const p=document.createElement("p");p.textContent="Ask "+aiName+" a question or add reference information in Core.";w.append(m,t,p);h.append(w)}else c.messages.forEach(x=>{const p=message(x.role,x.content);if(x.role==="assistant"&&renderGeneratedGui(x.content,p))p.textContent=x.content.replace(/```gui[\s\S]*?```/i,"[Interactive interface created below.]")})}
 function renderHistory(){const h=$("history-list");h.replaceChildren();[...chats].sort((a,b)=>b.updated-a.updated).forEach(c=>{const b=document.createElement("button");b.type="button";b.className="history-item"+(c.id===current?" active":"");const s=document.createElement("span");s.textContent=c.title||"New chat";b.append(s);b.addEventListener("click",()=>{current=c.id;persist();renderAll()});h.append(b)})}function renderAll(){renderMessages();renderHistory();applyName()}
+function extractGuiSpec(reply){
+const match=reply.match(/```(?:gui|json)?\\s*([\\s\\S]*?)(?:```|$)/i);
+if(!match)return null;
+const raw=match[1].trim();
+try{return JSON.parse(raw)}catch{
+const first=raw.indexOf("{"),last=raw.lastIndexOf("}");
+if(first<0||last<=first)return null;
+try{return JSON.parse(raw.slice(first,last+1))}catch{return null}
+}
+}
+function cleanGuiReply(reply){
+return reply.replace(/```(?:gui|json)?[\\s\\S]*?(?:```|$)/i,"[Interactive interface created below.]").trim()
+}
 function renderGeneratedGui(reply,anchor){
-const match=reply.match(/```(?:gui|json)\s*([\s\S]*?)```/i)||reply.match(/```\s*([\s\S]*?)```/);if(!match)return false;
-let spec;try{spec=JSON.parse(match[1])}catch{return false}
-if(!spec||!Array.isArray(spec.components)||spec.components.length>12)return false;
+const spec=extractGuiSpec(reply);if(!spec||!Array.isArray(spec.components)||spec.components.length>12)return false;
 const card=document.createElement("section");card.className="generated-gui";
 const head=document.createElement("h3");head.textContent=String(spec.title||"Interactive interface").slice(0,80);card.append(head);
 const feedback=document.createElement("div");feedback.className="gui-feedback";feedback.setAttribute("aria-live","polite");
@@ -22,7 +33,7 @@ for(const item of spec.components){
 if(!item||typeof item!=="object")continue;
 const type=String(item.type||"");
 if(type==="text"){const p=document.createElement("p");p.textContent=String(item.text||"").slice(0,1000);card.append(p)}
-else if(type==="button"){const b=document.createElement("button");b.type="button";b.className="primary gui-button";b.textContent=String(item.label||"Button").slice(0,80);b.addEventListener("click",()=>{feedback.textContent=item.action==="show-message"?String(item.message||"Button activated.").slice(0,300):"Button activated."});card.append(b)}
+else if(type==="button"){const b=document.createElement("button");b.type="button";b.className="primary gui-button";b.textContent=String(item.label||"Button").slice(0,80);b.addEventListener("click",()=>{feedback.textContent=String(item.message||"Button activated.").slice(0,300)});card.append(b)}
 else if(type==="counter"){let value=Number.isFinite(Number(item.initialValue))?Math.max(-999999,Math.min(999999,Number(item.initialValue))):0;const wrap=document.createElement("div");wrap.className="gui-counter";const label=document.createElement("b");label.textContent=String(item.label||"Counter").slice(0,80);const output=document.createElement("output");output.textContent=String(value);const minus=document.createElement("button");minus.type="button";minus.textContent="−";minus.setAttribute("aria-label","Decrease");const plus=document.createElement("button");plus.type="button";plus.textContent="+";plus.setAttribute("aria-label","Increase");minus.addEventListener("click",()=>{value--;output.textContent=String(value)});plus.addEventListener("click",()=>{value++;output.textContent=String(value)});wrap.append(label,minus,output,plus);card.append(wrap)}
 else if(type==="input"){const wrap=document.createElement("label");wrap.className="gui-field";const label=document.createElement("span");label.textContent=String(item.label||"Input").slice(0,80);const input=document.createElement("input");input.type="text";input.maxLength=300;input.placeholder=String(item.placeholder||"").slice(0,100);wrap.append(label,input);card.append(wrap)}
 else if(type==="checkbox"){const wrap=document.createElement("label");wrap.className="gui-check";const input=document.createElement("input");input.type="checkbox";const label=document.createElement("span");label.textContent=String(item.label||"Option").slice(0,100);wrap.append(input,label);card.append(wrap)}
