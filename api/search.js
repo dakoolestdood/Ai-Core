@@ -10,12 +10,12 @@ module.exports = async function handler(req,res){
     let q=req.method==="GET"?req.query?.q:req.body?.q;
     if(typeof q!=="string"||!q.trim())throw Error("Enter something to search for.");
     q=q.trim().slice(0,300);
-    const params=new URLSearchParams({q, kl:"wt-wt"});
+    const params=new URLSearchParams({q,kl:"wt-wt"});
     const response=await fetch("https://html.duckduckgo.com/html/?"+params.toString(),{headers:{"User-Agent":"Mozilla/5.0 (compatible; AiCore/1.0)","Accept":"text/html"},signal:AbortSignal.timeout(10000)});
     if(!response.ok)throw Error("Web search returned HTTP "+response.status);
     const html=await response.text();
     const results=[];
-    const links=[...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+    const links=[...html.matchAll(/<a[^>]*class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
     for(let i=0;i<links.length&&results.length<6;i++){
       let url=decode(links[i][1]);
       if(url.startsWith("//"))url="https:"+url;
@@ -24,8 +24,8 @@ module.exports = async function handler(req,res){
         if(!["http:","https:"].includes(u.protocol))continue;
         if(u.hostname.includes("duckduckgo.com")){const target=u.searchParams.get("uddg");if(target)url=target;}
         const title=text(links[i][2]);
-        const after=html.slice(links[i].index,links[i].index+1800);
-        const snippetMatch=after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+        const after=html.slice(links[i].index,links[i].index+2200);
+        const snippetMatch=after.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
         const snippet=snippetMatch?text(snippetMatch[1]):"";
         if(title&&!results.some(x=>x.url===url))results.push({title,url,snippet});
       }catch{}
