@@ -23,7 +23,7 @@ function field(block, name) {
   return clean(m?.[1] || "");
 }
 function sensitive(s) {
-  return /(api[_ -]?key|secret[_ -]?key|password|passwd|authorization:\\s*bearer|-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{16,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/i.test(s);
+  return /(api[_ -]?key|secret[_ -]?key|password|passwd|authorization:\s*bearer|-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{16,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i.test(s);
 }
 async function get(url, accept = "application/xml") {
   const r = await fetch(url, {
@@ -35,7 +35,7 @@ async function get(url, accept = "application/xml") {
 }
 async function collectFeed(feed) {
   const xml = await (await get(feed.url)).text();
-  const blocks = [...xml.matchAll(/<(item|entry)\\b[^>]*>[\\s\\S]*?<\\/\\1>/gi)].map(m => m[0]);
+  const blocks = [...xml.matchAll(/<(item|entry)\b[^>]*>[\s\S]*?<\/\1>/gi)].map(m => m[0]);
   const out = [];
   for (const block of blocks) {
     const title = field(block, "title");
