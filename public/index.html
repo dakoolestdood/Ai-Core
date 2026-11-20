@@ -4,31 +4,83 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10131b">
-  <title>Ai — Local AI Chat</title>
+  <title>Ai — Independent AI</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="app">
+  <div class="shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">A</span><div><h1>Ai</h1><p>Independent local AI</p></div></div>
+      <a class="brand" href="#" aria-label="Ai home"><span class="brand-mark">A</span><span><b>Ai</b><small>Independent intelligence</small></span></a>
+      <nav class="tabs" aria-label="Main navigation">
+        <button class="tab active" data-tab="chat" type="button">Chat</button>
+        <button class="tab" data-tab="core" type="button">Core <span id="core-dot" class="status-dot red"></span></button>
+      </nav>
       <div class="top-actions">
-        <button id="load-model" class="model-button" type="button" disabled>Check GPU…</button>
-        <button id="clear-chat" class="subtle-button" type="button">Clear chat</button>
+        <span id="model-state" class="model-state">Model not loaded</span>
+        <button id="load-model" class="primary small" type="button" disabled>Check GPU…</button>
       </div>
     </header>
-    <section id="messages" class="messages" aria-live="polite">
-      <article class="message assistant">
-        <div class="avatar">A</div>
-        <div class="bubble"><strong>Ai</strong><p>Hi. I'm Ai. Load my local model to start chatting. The first model download is large, but it is cached by your browser.</p></div>
-      </article>
-    </section>
-    <form id="chat-form" class="composer">
-      <label class="sr-only" for="message-input">Message Ai</label>
-      <textarea id="message-input" rows="1" maxlength="8000" placeholder="Load the local model first..." autocomplete="off" required disabled></textarea>
-      <button id="send-button" type="submit" aria-label="Send message" disabled>Send</button>
-    </form>
-    <footer><span id="status">Checking device GPU…</span><span>On-device model · No AI API</span></footer>
-  </main>
+
+    <main class="workspace">
+      <section id="chat-view" class="view chat-view">
+        <aside class="history-panel">
+          <button id="new-chat" class="new-chat" type="button"><span>＋</span> New chat</button>
+          <div class="history-heading">Recent chats</div>
+          <div id="history-list" class="history-list"></div>
+          <div class="history-bottom"><span class="mini-mark">A</span><span>Ai · Local model</span></div>
+        </aside>
+        <section class="chat-main">
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <form id="chat-form" class="composer">
+            <label class="sr-only" for="message-input">Message Ai</label>
+            <textarea id="message-input" rows="1" maxlength="8000" placeholder="Load the model to start chatting…" autocomplete="off" required disabled></textarea>
+            <button id="send-button" class="send-button" type="submit" aria-label="Send message" disabled>↑</button>
+            <div class="composer-hint">Ai can make mistakes. Check important information.</div>
+          </form>
+          <div class="chat-footer"><span id="status">Checking device GPU…</span><button id="clear-chat" class="text-button" type="button">Clear current chat</button></div>
+        </section>
+      </section>
+
+      <section id="core-view" class="view core-view" hidden>
+        <div class="core-heading">
+          <div><div class="eyebrow">AI KNOWLEDGE SYSTEM</div><h1>Core</h1><p>Manage what Ai can reference and learn from.</p></div>
+          <div class="health-card"><span id="core-status-light" class="status-dot red"></span><div><b id="core-status">Empty</b><small id="core-status-detail">No saved knowledge yet</small></div></div>
+        </div>
+        <div class="core-grid">
+          <section class="panel knowledge-panel">
+            <div class="panel-title"><div><h2>Knowledge base</h2><p>Facts and sources available to Ai during chats.</p></div><span id="knowledge-count" class="count-pill">0 items</span></div>
+            <div class="stats">
+              <div class="stat"><strong id="fact-count">0</strong><span>Manual facts</span></div>
+              <div class="stat"><strong id="source-count">0</strong><span>Web sources</span></div>
+              <div class="stat"><strong id="char-count">0</strong><span>Characters stored</span></div>
+            </div>
+            <div class="section-label">Saved knowledge</div>
+            <div id="knowledge-list" class="knowledge-list"><div class="empty-state">Nothing learned yet. Add a fact or inspect a website.</div></div>
+          </section>
+          <div class="core-side">
+            <section class="panel">
+              <div class="panel-title"><div><h2>Teach Ai</h2><p>Add information you want Ai to remember.</p></div></div>
+              <form id="fact-form" class="stack">
+                <label for="fact-title">Title</label><input id="fact-title" maxlength="100" placeholder="e.g. My project preferences" required>
+                <label for="fact-content">What should Ai know?</label><textarea id="fact-content" rows="5" maxlength="12000" placeholder="Type facts, instructions, explanations, or notes…" required></textarea>
+                <button class="primary" type="submit">Save to Core</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-title"><div><h2>Web reader</h2><p>Paste one or multiple public page URLs. One URL per line.</p></div></div>
+              <form id="url-form" class="stack">
+                <label for="url-input">Website URLs</label>
+                <textarea id="url-input" rows="4" placeholder="https://example.com/article&#10;https://en.wikipedia.org/wiki/Artificial_intelligence"></textarea>
+                <button id="inspect-button" class="primary" type="submit">Inspect and learn</button>
+                <div id="inspect-status" class="inline-status" aria-live="polite">Only publicly accessible text pages are supported.</div>
+              </form>
+            </section>
+          </div>
+        </div>
+        <p class="core-note">Knowledge is stored in this browser. Website text is retrieved by your Ai server and included as reference context; it does not retrain the model's weights.</p>
+      </section>
+    </main>
+  </div>
   <script src="/app.js" defer></script>
 </body>
 </html>
