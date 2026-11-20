@@ -132,8 +132,8 @@ $("chat-form").addEventListener("submit",async e=>{
   }
   $("status").textContent=aiName+" is composing a response locally…";
   let reply=await generateAnswer(chat,webContext);
-  const citations=[...webContext.matchAll(/WEB SOURCE \\d+: ([^\\n]+)\\nURL: ([^\\n]+)/g)].slice(0,3).map(m=>m[1]+" — "+m[2]);
-  if(citations.length)reply+="\\n\\nSources:\\n"+citations.join("\\n");
+  const citations=[...webContext.matchAll(/WEB SOURCE \d+: ([^\n]+)\nURL: ([^\n]+)/g)].slice(0,3).map(m=>m[1]+" — "+m[2]);
+  if(citations.length)reply+="\n\nSources:\n"+citations.join("\n");
   out.textContent=reply;chat.messages.push({role:"assistant",content:reply});chat.updated=Date.now();persist();renderHistory();
   $("status").textContent=webContext?"Ready · Local model + live web research":"Ready · Local model";
  }catch(err){const fail="I couldn't generate a response: "+err.message;out.textContent=fail;chat.messages.push({role:"assistant",content:fail});persist();$("status").textContent="Generation failed"}
