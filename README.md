@@ -1,45 +1,38 @@
 # Ai Core
 
-Ai is an independent chat application that runs an open-weight language model directly in the user's browser. The project does not call OpenAI, Gemini, or another hosted AI inference API.
+Ai is a browser-based chat application with a local language model and a separate Core knowledge workspace.
 
 ## Run in GitHub Codespaces
 
 1. Open the repository in Codespaces.
-2. Run `npm start`.
-3. Open the forwarded port 3000 in your browser.
+2. Run `git pull origin main` if the Codespace already exists.
+3. Run `npm start`.
+4. Open forwarded port 3000.
 
-## First launch
+## Chat
 
-1. Open the app over its HTTPS Codespaces address.
-2. Wait for the GPU check.
-3. Select **Load model**.
-4. The browser downloads the Qwen2.5 0.5B Instruct model (approximately 1 GB of model memory, depending on runtime files) and caches it for later use.
-5. Keep the page open while it downloads and initializes.
+- Chat-style interface with multiple locally saved conversations.
+- The browser runs the current Qwen2.5 0.5B model through WebLLM and WebGPU.
+- No hosted AI inference API is used.
 
-## How it works
+## Core knowledge
 
-- `server.js` only serves the website files.
-- `public/app.js` loads WebLLM in the browser and runs inference locally through WebGPU.
-- Model weights are downloaded from the public model repository on first use and cached by the browser.
-- Chat history is stored in the current browser's local storage.
-- The app streams generated responses into the chat interface.
+- Save facts and notes manually.
+- Submit one or multiple public webpage URLs for text extraction.
+- Retrieved page text and manual notes are saved in this browser's local storage.
+- The latest Core knowledge is added to the model's prompt as reference context during chats.
+- Red means Core is empty, yellow means a page inspection is in progress, and green means knowledge is saved.
 
-## Requirements and limitations
+Core knowledge is retrieval/context, not model training. Adding a note or webpage does not update the model's neural-network weights.
 
-- A modern browser with working WebGPU support is required.
-- The first model download is large and needs an internet connection.
-- The model uses device GPU memory and may be slow or unavailable on some phones and tablets.
-- The 0.5B model is a compact starter model; it is much less capable than large hosted assistants and can make mistakes.
-- If WebGPU is unavailable, the app will explain that the device cannot load the model. No remote AI API fallback is included.
+## Website reader limitations
 
-## Project structure
+The server can extract text from publicly accessible HTTP/HTTPS HTML and plain-text pages. It does not execute page JavaScript, sign into websites, access private accounts, or inspect arbitrary installed mobile apps. Some sites block automated requests or require JavaScript; those pages may not be readable. The reader rejects local/private network addresses and limits page size and request time.
 
-- `server.js` — static web server only; no chat inference endpoint.
-- `ai.js` — legacy rule-based engine, no longer used by the chat interface.
-- `public/index.html` — chat page.
-- `public/style.css` — interface styling.
-- `public/app.js` — local WebLLM loading, inference, streaming, and browser history.
+## Scratch model foundation
+
+The `model/` directory contains Ai's initial decoder-only Transformer, byte tokenizer, training script, and local inference script. These files define an experimental model initialized from random weights. It has not yet been trained into a useful assistant. Training requires a licensed text corpus and a suitable compute environment. The existing browser chat still uses Qwen until the scratch model is trained, exported, and integrated.
 
 ## Privacy
 
-Prompts are passed to the model running in the browser, not to an AI inference API. Model files are downloaded from the model host. Conversation history is stored in the current browser's local storage and is not written to the Node.js server.
+Chat histories and Core knowledge are stored in the browser's local storage. When a URL is submitted in Core, the server requests that public page and returns extracted text to the browser. Do not add private or sensitive information to Core.
