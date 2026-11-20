@@ -1,0 +1,14 @@
+{
+  "updatedAt": null,
+  "sources": [
+    {
+      "name": "NASA News",
+      "url": "https://www.nasa.gov/feed/"
+    },
+    {
+      "name": "arXiv Artificial Intelligence",
+      "url": "https://export.arxiv.org/rss/cs.AI"
+    }
+  ],
+  "items": []
+}
