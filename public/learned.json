@@ -1,14 +1,59 @@
 {
-  "updatedAt": null,
+  "updatedAt": "2026-11-20T12:38:36.412Z",
   "sources": [
     {
-      "name": "NASA News",
-      "url": "https://www.nasa.gov/feed/"
+      "name": "Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Special:RecentChanges"
     },
     {
-      "name": "arXiv Artificial Intelligence",
-      "url": "https://export.arxiv.org/rss/cs.AI"
+      "name": "NASA",
+      "url": "https://www.nasa.gov/"
+    },
+    {
+      "name": "U.S. Department of Energy",
+      "url": "https://www.energy.gov/science"
     }
   ],
-  "items": []
+  "items": [
+    {
+      "title": "Artificial intelligence",
+      "source": "Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+      "published": "",
+      "summary": "Artificial intelligence is the field concerned with creating computer systems that perform tasks associated with intelligent behavior. Machine learning is one approach within AI. Neural networks use interconnected artificial units to learn patterns from examples. Deep learning uses networks with multiple layers to learn increasingly complex representations. Language models generate text by predicting tokens from patterns learned during training.",
+      "learnedAt": "2026-11-20T12:38:36.412Z"
+    },
+    {
+      "title": "Machine learning",
+      "source": "Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Machine_learning",
+      "published": "",
+      "summary": "Machine learning is a subfield of artificial intelligence. Instead of relying only on hand-written task rules, machine-learning algorithms use examples or data to identify patterns and make predictions or decisions. Common learning paradigms include supervised learning with labeled examples, unsupervised learning on unlabeled data, and reinforcement learning using rewards or penalties.",
+      "learnedAt": "2026-11-20T12:38:36.412Z"
+    },
+    {
+      "title": "Neural networks",
+      "source": "Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Neural_network_(machine_learning)",
+      "published": "",
+      "summary": "An artificial neural network is a mathematical model made from connected units arranged in layers. Each unit processes numerical inputs and passes an output onward. Connections have weights that are adjusted during training so the network better fits examples. Neural networks are used in areas such as image recognition, speech processing, prediction, and other machine-learning tasks.",
+      "learnedAt": "2026-11-20T12:38:36.412Z"
+    },
+    {
+      "title": "NASA researchers teach machines to see",
+      "source": "NASA",
+      "url": "https://www.nasa.gov/technology/science-instruments/nasa-researchers-teach-machines-to-see/",
+      "published": "2018-10-30",
+      "summary": "NASA describes researchers exploring machine learning and neural networks to help scientists identify patterns and trends in data. The article explains that these approaches can analyze data from ground-based or space-based systems, rather than requiring programmers to specify every individual task rule.",
+      "learnedAt": "2026-11-20T12:38:36.412Z"
+    },
+    {
+      "title": "DOE explains machine learning",
+      "source": "U.S. Department of Energy",
+      "url": "https://www.energy.gov/science/doe-explainsmachine-learning",
+      "published": "2026-03-09",
+      "summary": "The U.S. Department of Energy describes machine learning as using computers to detect patterns in datasets and make predictions from those patterns. Systems are trained using data examples. The article also notes that machine-learning results depend on careful design and can be affected by human error and bias.",
+      "learnedAt": "2026-11-20T12:38:36.412Z"
+    }
+  ]
 }
