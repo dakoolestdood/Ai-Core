@@ -1,4 +1,1 @@
-import { WebWorkerMLCEngineHandler } from "https://esm.run/@mlc-ai/web-llm@0.2.89";
-
-const handler = new WebWorkerMLCEngineHandler();
-self.onmessage = (event) => handler.onmessage(event);
+// Retired: Ai no longer loads WebLLM or Qwen. Chat currently uses the independent Core retrieval engine in app.js.
