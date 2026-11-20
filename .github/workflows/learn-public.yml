@@ -1,0 +1,31 @@
+name: Learn public information
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: public-learning
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect public feed summaries
+        run: node scripts/learn-public.mjs
+      - name: Commit updated knowledge
+        run: |
+          if git diff --quiet -- public/learned.json; then
+            echo "No public knowledge changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/learned.json
+          git commit -m "Update automatically learned public knowledge"
+          git push
