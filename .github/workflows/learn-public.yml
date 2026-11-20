@@ -1,7 +1,7 @@
 name: Learn public information
 on:
   schedule:
-    - cron: "17 3 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Collect public feed summaries
+      - name: Collect public website, wiki, and research summaries
         run: node scripts/learn-public.mjs
       - name: Commit updated knowledge
         run: |
