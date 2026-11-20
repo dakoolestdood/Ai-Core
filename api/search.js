@@ -15,18 +15,20 @@ module.exports = async function handler(req,res){
     if(!response.ok)throw Error("Web search returned HTTP "+response.status);
     const html=await response.text();
     const results=[];
-    const re=/<div class="result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<div class="result|<\/div>)/gi;
-    let m;
-    while((m=re.exec(html))&&results.length<6){
-      const block=m[1];
-      const link=block.match(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
-      if(!link)continue;
-      let url=decode(link[1]);
+    const links=[...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+    for(let i=0;i<links.length&&results.length<6;i++){
+      let url=decode(links[i][1]);
       if(url.startsWith("//"))url="https:"+url;
-      try{const u=new URL(url);if(!["http:","https:"].includes(u.protocol))continue;if(u.hostname.includes("duckduckgo.com")){const target=u.searchParams.get("uddg");if(target)url=target;}}catch{continue;}
-      const snippet=block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/[^>]+>/i);
-      const title=text(link[2]),summary=snippet?text(snippet[1]):"";
-      if(title&&url&&!results.some(x=>x.url===url))results.push({title,url,snippet:summary});
+      try{
+        const u=new URL(url);
+        if(!["http:","https:"].includes(u.protocol))continue;
+        if(u.hostname.includes("duckduckgo.com")){const target=u.searchParams.get("uddg");if(target)url=target;}
+        const title=text(links[i][2]);
+        const after=html.slice(links[i].index,links[i].index+1800);
+        const snippetMatch=after.match(/class="result__snippet"[^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+        const snippet=snippetMatch?text(snippetMatch[1]):"";
+        if(title&&!results.some(x=>x.url===url))results.push({title,url,snippet});
+      }catch{}
     }
     if(!results.length)throw Error("No readable search results were returned. Try rephrasing the query.");
     res.status(200).json({query:q,results});
