@@ -1,0 +1,1 @@
+# Training data\n\nPut a UTF-8 plain-text corpus in this folder as `train.txt`. Use text you created, public-domain material, or datasets whose licenses explicitly permit this use. Keep private or personal information out of the corpus. The first model is a byte-level language model, so training text should be clean and consistently formatted.\n
