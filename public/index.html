@@ -17,7 +17,7 @@
       </nav>
       <div class="top-actions">
         <span id="model-state" class="model-state">Model not loaded</span>
-        <button id="load-model" class="primary small" type="button" disabled>Check GPU…</button>
+        <button id="load-model" class="primary small" type="button">Load model</button>
       </div>
     </header>
 
@@ -33,11 +33,11 @@
           <div id="messages" class="messages" aria-live="polite"></div>
           <form id="chat-form" class="composer">
             <label class="sr-only" for="message-input">Message Ai</label>
-            <textarea id="message-input" rows="1" maxlength="8000" placeholder="Load the model to start chatting…" autocomplete="off" required disabled></textarea>
-            <button id="send-button" class="send-button" type="submit" aria-label="Send message" disabled>↑</button>
+            <textarea id="message-input" rows="1" maxlength="8000" placeholder="Load the model to start chatting…" autocomplete="off" required></textarea>
+            <button id="send-button" class="send-button" type="submit" aria-label="Send message">↑</button>
             <div class="composer-hint">Ai can make mistakes. Check important information.</div>
           </form>
-          <div class="chat-footer"><span id="status">Checking device GPU…</span><button id="clear-chat" class="text-button" type="button">Clear current chat</button></div>
+          <div class="chat-footer"><span id="status">Ready. Load the local model to start chatting.</span><button id="clear-chat" class="text-button" type="button">Clear current chat</button></div>
         </section>
       </section>
 
@@ -81,6 +81,20 @@
       </section>
     </main>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll(".tab").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var tab = button.dataset.tab;
+          document.querySelectorAll(".tab").forEach(function (item) { item.classList.toggle("active", item === button); });
+          var chat = document.getElementById("chat-view");
+          var core = document.getElementById("core-view");
+          if (chat) chat.hidden = tab !== "chat";
+          if (core) core.hidden = tab !== "core";
+        });
+      });
+    });
+  </script>
   <script src="/app.js" defer></script>
 </body>
 </html>
