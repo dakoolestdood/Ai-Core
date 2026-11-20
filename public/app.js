@@ -7,7 +7,7 @@ if(!Array.isArray(chats))chats=[];if(!Array.isArray(taught))taught=[];
 function persist(){save(KEY.chats,chats);save(KEY.current,current);save(KEY.knowledge,taught)}function activeChat(){return chats.find(c=>c.id===current)}
 function newChat(){const c={id:id(),title:"New chat",messages:[],updated:Date.now()};chats.unshift(c);current=c.id;persist();renderAll()}
 function tab(n){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===n));$("chat-view").hidden=n!=="chat";$("core-view").hidden=n!=="core";$("images-view").hidden=n!=="images";$("customize-view").hidden=n!=="customize";if(n==="core")renderCore()}document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
-function applyName(){$("brand-name").textContent=aiName;$("history-brand").textContent=aiName+" · Core retrieval";$("ai-name-input").value=aiName;document.title=aiName+" — Independent AI";document.querySelectorAll(".ai-name").forEach(x=>x.textContent=aiName);$("message-input").placeholder=engine?"Message "+aiName+"…":"Start Ai Core to search saved knowledge…"}
+function applyName(){$("brand-name").textContent=aiName;$("history-brand").textContent=aiName+" · Local model";$("ai-name-input").value=aiName;document.title=aiName+" — Independent AI";document.querySelectorAll(".ai-name").forEach(x=>x.textContent=aiName);$("message-input").placeholder=engine?"Message "+aiName+"…":"Load the local model to start chatting…"}
 function message(role,content){const a=document.createElement("article");a.className="message "+role;const av=document.createElement("div");av.className="avatar";av.textContent=role==="assistant"?aiName[0].toUpperCase():"You";const b=document.createElement("div");b.className="bubble";const l=document.createElement("strong");l.textContent=role==="assistant"?aiName:"You";const p=document.createElement("p");p.textContent=content;b.append(l,p);a.append(av,b);$("messages").append(a);$("messages").scrollTop=$("messages").scrollHeight;return p}
 function renderMessages(){const h=$("messages");h.replaceChildren();const c=activeChat();if(!c||!c.messages.length){const w=document.createElement("div");w.className="welcome";const m=document.createElement("div");m.className="welcome-mark";m.textContent=aiName[0].toUpperCase();const t=document.createElement("h2");t.textContent="What can I help with?";const p=document.createElement("p");p.textContent="Ask "+aiName+" a question or add reference information in Core.";w.append(m,t,p);h.append(w)}else c.messages.forEach(x=>{const p=message(x.role,x.content);if(x.role==="assistant"&&renderGeneratedGui(x.content,p))p.textContent=cleanGuiReply(x.content)})}
 function renderHistory(){const h=$("history-list");h.replaceChildren();[...chats].sort((a,b)=>b.updated-a.updated).forEach(c=>{const b=document.createElement("button");b.type="button";b.className="history-item"+(c.id===current?" active":"");const s=document.createElement("span");s.textContent=c.title||"New chat";b.append(s);b.addEventListener("click",()=>{current=c.id;persist();renderAll()});h.append(b)})}function renderAll(){renderMessages();renderHistory();applyName()}
@@ -58,19 +58,23 @@ async function loadPublic(){try{const r=await fetch("/learned.json?"+Date.now(),
 function sensitive(s){return /(api[_ -]?key|secret[_ -]?key|password|passwd|authorization:\s*bearer|-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{16,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:\+?\d[\d ().-]{8,}\d)\b)/i.test(s)}
 async function loadModel(){
  if(loading||engine)return;
- loading=true;$("load-model").disabled=true;$("load-model").textContent="Downloading…";$("model-state").textContent="Loading local model";$("status").textContent="Downloading SmolLM2-360M-Instruct for this browser. First load is about 270 MB.";
+ loading=true;$("load-model").disabled=true;$("load-model").textContent="Downloading…";$("model-state").textContent="Loading local model";$("status").textContent="Downloading SmolLM2-360M-Instruct for this browser. First load is a few hundred MB.";
  try{
   const {pipeline,env}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");
   env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;
   const device=navigator.gpu?"webgpu":"wasm";
   const dtype=device==="webgpu"?"q4f16":"q4";
-  engine=await pipeline("text-generation","onnx-community/SmolLM2-360M-Instruct-ONNX",{
-   device,dtype,
-   progress_callback:(p)=>{
-    if(p.status==="progress"&&Number.isFinite(p.progress))$("status").textContent="Downloading local model: "+Math.round(p.progress)+"%";
-    else if(p.status==="initiate")$("status").textContent="Preparing model file: "+(p.file||"");
-   }
-  });
+  const onProgress=(p)=>{
+   if(p.status==="progress"&&Number.isFinite(p.progress))$("status").textContent="Downloading local model: "+Math.round(p.progress)+"%";
+   else if(p.status==="initiate")$("status").textContent="Preparing model file: "+(p.file||"");
+  };
+  try{
+   engine=await pipeline("text-generation","onnx-community/SmolLM2-360M-Instruct-ONNX",{device,dtype,progress_callback:onProgress});
+  }catch(firstError){
+   if(device!=="webgpu")throw firstError;
+   $("status").textContent="WebGPU could not start. Retrying with the CPU/WASM backend…";
+   engine=await pipeline("text-generation","onnx-community/SmolLM2-360M-Instruct-ONNX",{device:"wasm",dtype:"q4",progress_callback:onProgress});
+  }
   $("model-state").textContent="Local model ready";$("status").textContent="Ready · SmolLM2-360M-Instruct · "+(device==="webgpu"?"WebGPU":"WASM CPU");$("load-model").hidden=true;
   $("message-input").disabled=false;$("send-button").disabled=false;applyName();
  }catch(e){engine=null;$("model-state").textContent="Model unavailable";$("status").textContent="Could not load the local model: "+e.message;$("load-model").disabled=false;$("load-model").textContent="Retry model download"}
