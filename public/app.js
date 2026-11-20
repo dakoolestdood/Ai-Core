@@ -62,7 +62,7 @@ async function loadModel(){
  try{
   const {pipeline,env}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");
   env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;
-  const device=navigator.gpu?"webgpu":"wasm";
+  const device=navigator.gpu?"webgpu":"wasm";let activeDevice=device;
   const dtype=device==="webgpu"?"q4f16":"q4";
   const onProgress=(p)=>{
    if(p.status==="progress"&&Number.isFinite(p.progress))$("status").textContent="Downloading local model: "+Math.round(p.progress)+"%";
@@ -72,10 +72,10 @@ async function loadModel(){
    engine=await pipeline("text-generation","onnx-community/SmolLM2-360M-Instruct-ONNX",{device,dtype,progress_callback:onProgress});
   }catch(firstError){
    if(device!=="webgpu")throw firstError;
-   $("status").textContent="WebGPU could not start. Retrying with the CPU/WASM backend…";
+   $("status").textContent="WebGPU could not start. Retrying with the CPU/WASM backend…";activeDevice="wasm";
    engine=await pipeline("text-generation","onnx-community/SmolLM2-360M-Instruct-ONNX",{device:"wasm",dtype:"q4",progress_callback:onProgress});
   }
-  $("model-state").textContent="Local model ready";$("status").textContent="Ready · SmolLM2-360M-Instruct · "+(device==="webgpu"?"WebGPU":"WASM CPU");$("load-model").hidden=true;
+  $("model-state").textContent="Local model ready";$("status").textContent="Ready · SmolLM2-360M-Instruct · "+(activeDevice==="webgpu"?"WebGPU":"WASM CPU");$("load-model").hidden=true;
   $("message-input").disabled=false;$("send-button").disabled=false;applyName();
  }catch(e){engine=null;$("model-state").textContent="Model unavailable";$("status").textContent="Could not load the local model: "+e.message;$("load-model").disabled=false;$("load-model").textContent="Retry model download"}
  finally{loading=false}
@@ -131,7 +131,9 @@ $("chat-form").addEventListener("submit",async e=>{
    catch(err){webContext="Live web search was unavailable ("+err.message+"). Answer from existing knowledge and clearly note if current facts cannot be verified."}
   }
   $("status").textContent=aiName+" is composing a response locally…";
-  const reply=await generateAnswer(chat,webContext);
+  let reply=await generateAnswer(chat,webContext);
+  const citations=[...webContext.matchAll(/WEB SOURCE \\d+: ([^\\n]+)\\nURL: ([^\\n]+)/g)].slice(0,3).map(m=>m[1]+" — "+m[2]);
+  if(citations.length)reply+="\\n\\nSources:\\n"+citations.join("\\n");
   out.textContent=reply;chat.messages.push({role:"assistant",content:reply});chat.updated=Date.now();persist();renderHistory();
   $("status").textContent=webContext?"Ready · Local model + live web research":"Ready · Local model";
  }catch(err){const fail="I couldn't generate a response: "+err.message;out.textContent=fail;chat.messages.push({role:"assistant",content:fail});persist();$("status").textContent="Generation failed"}
