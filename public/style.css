@@ -15,3 +15,4 @@
 @media(max-width:390px){.brand b{font-size:15px}.brand-mark{width:30px;height:30px}.topbar{gap:7px}.tab{padding:0 9px}.primary.small{font-size:10px;padding:7px 8px}.stats{gap:5px}.stat{padding:10px 8px}}
 
 .core-side{margin-top:20px}.core-side .panel{margin-top:16px;margin-bottom:0}.core-side .panel:first-child{margin-top:20px}.customize-panel{max-width:560px}.source-link{display:inline-block;margin-top:8px;color:var(--accent);font-size:11px}.knowledge-panel>.inline-status{margin:12px 0}.knowledge-panel>.knowledge-list{margin-top:12px}.knowledge-panel>.core-side{margin-top:10px}
+.core-side{margin-top:18px}.core-side .panel{margin:14px 0 0}.customize-panel{max-width:560px}.source-link{display:inline-block;margin-top:8px;color:var(--accent);font-size:11px}.knowledge-panel>.inline-status{margin:12px 0}.knowledge-panel>.knowledge-list{margin-top:12px}
