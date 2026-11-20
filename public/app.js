@@ -129,12 +129,12 @@ form.addEventListener("submit", async event => {
   try {
     const chatMessages = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...history.slice(-16).map(item => ({ role: item.role, content: item.content }))
+      ...history.slice(-8).map(item => ({ role: item.role, content: item.content }))
     ];
     const stream = await engine.chat.completions.create({
       messages: chatMessages,
       temperature: 0.7,
-      max_tokens: 600,
+      max_tokens: 300,
       stream: true
     });
     let reply = "";
