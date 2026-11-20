@@ -1,49 +1,23 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
+const dns = require("node:dns").promises;
+const net = require("node:net");
 const { URL } = require("node:url");
-
-const ROOT = __dirname;
-const PUBLIC = path.join(ROOT, "public");
+const PUBLIC = path.join(__dirname, "public");
 const PORT = Number(process.env.PORT) || 3000;
-const MIME = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml"
-};
+const MAX_BODY = 16 * 1024;
+const MAX_PAGE = 1024 * 1024;
+const MIME = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".json":"application/json; charset=utf-8",".svg":"image/svg+xml"};
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, "http://localhost");
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
-    return res.end("Method not allowed.");
-  }
-
-  const requested = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname).replace(/^\/+/, "");
-  const filePath = path.resolve(PUBLIC, requested);
-  if (!filePath.startsWith(PUBLIC + path.sep) && filePath !== PUBLIC) {
-    res.writeHead(403);
-    return res.end("Forbidden.");
-  }
-
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      return res.end("Not found.");
-    }
-    res.writeHead(200, {
-      "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-cache"
-    });
-    if (req.method === "HEAD") return res.end();
-    res.end(data);
-  });
-});
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Ai website is running on port ${PORT}`);
-  console.log("AI inference runs in the browser on the user's device.");
-});
+function privateIPv4(ip){const p=ip.split(".").map(Number);return p.length!==4||p.some(n=>!Number.isInteger(n)||n<0||n>255)||p[0]===10||p[0]===127||p[0]===0||p[0]===169&&p[1]===254||p[0]===172&&p[1]>=16&&p[1]<=31||p[0]===192&&p[1]===168||p[0]>=224}
+function privateIPv6(ip){const s=ip.toLowerCase();return s==="::"||s==="::1"||s.startsWith("fc")||s.startsWith("fd")||/^fe[89ab]/.test(s)||s.startsWith("::ffff:")&&privateIPv4(s.slice(7).replace(/^\[|\]$/g,""))}
+async function validatePublicUrl(value){let u;try{u=new URL(value)}catch{throw Error("Invalid URL")}if(!["http:","https:"].includes(u.protocol)||u.username||u.password)throw Error("Only public HTTP or HTTPS URLs are supported.");if(!u.hostname||u.hostname==="localhost"||u.hostname.endsWith(".localhost")||u.hostname.endsWith(".local"))throw Error("Local and private network addresses are blocked.");if(net.isIP(u.hostname)){if(net.isIPv4(u.hostname)?privateIPv4(u.hostname):privateIPv6(u.hostname))throw Error("Private network addresses are blocked.");throw Error("For safety, use a public website hostname instead of an IP address.")}const records=await dns.lookup(u.hostname,{all:true,verbatim:true});if(!records.length||records.some(r=>net.isIPv4(r.address)?privateIPv4(r.address):privateIPv6(r.address)))throw Error("This hostname resolves to a private or restricted address.");return u}
+function stripHtml(html){return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi," ").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi," ").replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi," ").replace(/<!--([\s\S]*?)-->/g," ").replace(/<(br|\/p|\/div|\/h[1-6]|\/li|\/tr|\/article|\/section)[^>]*>/gi,"\n").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Math.min(0x10ffff,Number(n)))).replace(/[ \t\f\v]+/g," ").replace(/\n\s*/g,"\n").replace(/\n{3,}/g,"\n\n").trim()}
+function extractTitle(html){return (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||"Web page").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").trim().slice(0,180)}
+async function inspectPage(input){let url=await validatePublicUrl(input);for(let redirects=0;redirects<=4;redirects++){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);let response;try{response=await fetch(url,{redirect:"manual",signal:controller.signal,headers:{"User-Agent":"AiCoreReader/1.0 (public page text extraction)","Accept":"text/html,text/plain,application/xhtml+xml"}})}finally{clearTimeout(timer)}if([301,302,303,307,308].includes(response.status)){if(redirects===4)throw Error("Too many redirects.");const location=response.headers.get("location");if(!location)throw Error("Redirect without a location.");url=await validatePublicUrl(new URL(location,url).toString());continue}if(!response.ok)throw Error("Website returned HTTP "+response.status);const type=(response.headers.get("content-type")||"").toLowerCase();if(!type.includes("text/html")&&!type.includes("text/plain")&&!type.includes("application/xhtml+xml"))throw Error("This URL does not return a readable HTML or text page.");const length=Number(response.headers.get("content-length")||0);if(length>MAX_PAGE)throw Error("Page is larger than the 1 MB inspection limit.");const raw=await response.text();if(Buffer.byteLength(raw,"utf8")>MAX_PAGE)throw Error("Page is larger than the 1 MB inspection limit.");const html=type.includes("text/plain")?raw:raw;const text=type.includes("text/plain")?raw:stripHtml(html);if(text.length<30)throw Error("No readable page text was found. It may require JavaScript or a login.");return {url:url.toString(),title:type.includes("text/plain")?url.hostname:extractTitle(html),text:text.slice(0,16000)}}throw Error("Could not follow website redirects.")}
+function send(res,status,data){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"});res.end(JSON.stringify(data))}
+async function readBody(req){let body="";for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>MAX_BODY)throw Error("Request too large.")}return JSON.parse(body||"{}")}
+const server=http.createServer(async(req,res)=>{const url=new URL(req.url,"http://localhost");if(req.method==="POST"&&url.pathname==="/api/inspect"){try{const body=await readBody(req);if(typeof body.url!=="string"||body.url.length>2048)throw Error("Provide one URL up to 2048 characters.");const result=await inspectPage(body.url);return send(res,200,result)}catch(error){return send(res,400,{error:error.name==="AbortError"?"Website request timed out.":error.message||"Inspection failed."})}}
+if(req.method!=="GET"&&req.method!=="HEAD"){res.writeHead(405,{"Content-Type":"text/plain; charset=utf-8"});return res.end("Method not allowed.")}let requested;try{requested=url.pathname==="/"?"index.html":decodeURIComponent(url.pathname).replace(/^\/+/, "")}catch{return res.writeHead(400).end("Bad request.")}const file=path.resolve(PUBLIC,requested);if(!file.startsWith(PUBLIC+path.sep)){res.writeHead(403);return res.end("Forbidden.")}fs.readFile(file,(err,data)=>{if(err){res.writeHead(404,{"Content-Type":"text/plain; charset=utf-8"});return res.end("Not found.")}res.writeHead(200,{"Content-Type":MIME[path.extname(file)]||"application/octet-stream","X-Content-Type-Options":"nosniff","Cache-Control":"no-cache"});if(req.method==="HEAD")return res.end();res.end(data)})});
+server.listen(PORT,"0.0.0.0",()=>console.log("Ai website and public-page reader listening on port "+PORT));
