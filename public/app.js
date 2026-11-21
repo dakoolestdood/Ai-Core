@@ -58,60 +58,62 @@ async function loadPublic(){try{const r=await fetch("/learned.json?"+Date.now(),
 function sensitive(s){return /(api[_ -]?key|secret[_ -]?key|password|passwd|authorization:\s*bearer|-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{16,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:\+?\d[\d ().-]{8,}\d)\b)/i.test(s)}
 async function loadModel(){
  if(loading||engine)return;
- loading=true;$("load-model").disabled=true;$("load-model").textContent="Loading…";$("model-state").textContent="Checking model connection";$("status").textContent="Checking access to the model files…";
- let activeDevice="wasm",modelId="onnx-community/SmolLM2-135M-Instruct-ONNX";
+ loading=true;
+ const button=$("load-model");
+ button.disabled=true;button.textContent="Loading…";
+ $("model-state").textContent="Preparing local model";
+ $("status").textContent="Starting the CPU-compatible model loader…";
+ const modelId="onnx-community/SmolLM2-135M-Instruct-ONNX-MHA";
  try{
-  let transformers;
+  let lib;
   try{
-   transformers=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
-  }catch(cdnError){
-   $("status").textContent="Primary library CDN failed. Trying backup CDN…";
-   transformers=await import("https://esm.sh/@huggingface/transformers@3.8.1");
+   lib=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+  }catch(first){
+   $("status").textContent="Main library CDN unavailable; trying backup…";
+   lib=await import("https://esm.sh/@huggingface/transformers@3.8.1?bundle");
   }
-  const {pipeline,env}=transformers;
-  env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;
-  if(env.backends?.onnx?.wasm)env.backends.onnx.wasm.numThreads=1;
-  const configUrl="https://huggingface.co/"+modelId+"/resolve/main/config.json";
-  const check=await fetch(configUrl,{mode:"cors",cache:"no-store"});
-  if(!check.ok)throw Error("Cannot reach Hugging Face model files (HTTP "+check.status+"). Check your connection or try again later.");
-  await check.json();
+  const {pipeline,env}=lib;
+  env.allowLocalModels=false;
+  env.allowRemoteModels=true;
+  env.backends.onnx.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/";
+  env.backends.onnx.wasm.numThreads=1;
   const onProgress=(p)=>{
    if(p.status==="progress"&&Number.isFinite(p.progress)){
-    $("status").textContent="Downloading model · "+Math.round(p.progress)+"%";
+    $("status").textContent="Downloading model files · "+Math.round(p.progress)+"%";
    }else if(p.status==="initiate"){
-    $("status").textContent="Starting download: "+(p.file||"model files");
+    $("status").textContent="Downloading "+(p.file||"model file")+"…";
    }else if(p.status==="done"){
-    $("status").textContent="Downloaded "+(p.file||"a file")+". Preparing…";
+    $("status").textContent="Downloaded "+(p.file||"a model file")+"; preparing…";
    }else if(p.status==="ready"){
-    $("status").textContent="Preparing local AI engine…";
-   }else if(p.status==="download"){
-    $("status").textContent="Downloading model files…";
+    $("status").textContent="Preparing the AI engine…";
+   }else{
+    $("status").textContent="Loading local model…";
    }
   };
-  let adapter=null;
-  if(navigator.gpu){try{adapter=await navigator.gpu.requestAdapter()}catch(e){adapter=null}}
-  if(adapter){
-   activeDevice="webgpu";
-   try{
-    engine=await pipeline("text-generation",modelId,{device:"webgpu",dtype:"q4f16",progress_callback:onProgress});
-   }catch(gpuError){
-    engine=null;activeDevice="wasm";
-    $("status").textContent="WebGPU is unsupported on this device. Retrying with CPU mode…";
-   }
-  }
-  if(!engine){
-   activeDevice="wasm";
-   $("status").textContent="Loading the CPU version. Keep this page open while it downloads…";
-   engine=await pipeline("text-generation",modelId,{device:"wasm",dtype:"q4",progress_callback:onProgress});
-  }
+  $("status").textContent="Connecting to Hugging Face…";
+  const check=await fetch("https://huggingface.co/"+modelId+"/resolve/main/config.json",{mode:"cors",cache:"no-store"});
+  if(!check.ok)throw Error("Model config request failed: HTTP "+check.status);
+  const config=await check.json();
+  if(!config.model_type)throw Error("The model configuration is invalid.");
+  $("status").textContent="Downloading the small CPU model. Keep this tab open…";
+  engine=await pipeline("text-generation",modelId,{
+   device:"wasm",
+   dtype:"q4",
+   progress_callback:onProgress
+  });
   $("model-state").textContent="Local model ready";
-  $("status").textContent="Ready · SmolLM2-135M-Instruct · "+(activeDevice==="webgpu"?"WebGPU":"WASM CPU");
-  $("load-model").hidden=true;$("message-input").disabled=false;$("send-button").disabled=false;applyName();
+  $("status").textContent="Ready · SmolLM2-135M-Instruct · CPU/WASM";
+  button.hidden=true;
+  $("message-input").disabled=false;
+  $("send-button").disabled=false;
+  applyName();
  }catch(e){
-  engine=null;$("model-state").textContent="Model unavailable";
+  engine=null;
+  $("model-state").textContent="Model unavailable";
   const detail=String(e?.message||e||"Unknown error");
-  $("status").textContent="Load failed: "+detail.slice(0,400)+". Keep this exact error and send it to support.";
-  $("load-model").disabled=false;$("load-model").textContent="Retry model download";
+  $("status").textContent="MODEL LOAD ERROR: "+detail.slice(0,500);
+  button.disabled=false;
+  button.textContent="Retry model download";
   console.error("Ai Core model load failed:",e);
  }finally{loading=false}
 }
