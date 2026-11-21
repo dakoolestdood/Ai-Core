@@ -44,7 +44,7 @@ card.append(feedback);anchor.parentElement.append(card);return true;
 
 function imageStatus(text){$("image-status").textContent=text}
 function imageProgress(p={},phase=""){const pct=Number.isFinite(p.pct)?p.pct:null;$("image-progress-wrap").hidden=false;if(pct!==null)$("image-progress").value=pct;else $("image-progress").removeAttribute("value");let extra="";if(p.bytesDownloaded!=null&&p.totalBytesExpected!=null)extra=" · "+(p.bytesDownloaded/1048576).toFixed(0)+"/"+(p.totalBytesExpected/1048576).toFixed(0)+" MB";$("image-progress-label").textContent=(phase||p.message||p.phase||"Working…")+(pct!==null?" · "+pct+"%":"")+extra}
-async function loadImageModel(){if(imageLoading||imageClient)return;imageLoading=true;$("load-image-model").disabled=true;$("load-image-model").textContent="Loading…";imageStatus("Checking WebGPU and preparing the image model…");try{if(!navigator.gpu)throw Error("WebGPU is unavailable in this browser. Image generation requires a compatible browser and GPU.");const {Txt2ImgWorkerClient}=await import("https://esm.sh/web-txt2img@0.3.1?external=@xenova/transformers");imageClient=Txt2ImgWorkerClient.createDefault();const loaded=await imageClient.load("sd-turbo",{backendPreference:["webgpu"],tokenizerProvider:async()=>{const {AutoTokenizer,env}=await import("https://esm.sh/@xenova/transformers@2.17.2");env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;const tok=await AutoTokenizer.from_pretrained("Xenova/clip-vit-base-patch16");tok.pad_token_id=0;return (value,opts)=>tok(value,opts)}},p=>imageProgress(p,"Downloading image model…"));if(!loaded?.ok)throw Error(loaded?.message||"Image model could not be loaded.");$("image-model-state").textContent="Image model ready";$("image-status-light").className="status-dot green";$("image-status-detail").textContent="Ready · SD-Turbo";$("generate-image").disabled=false;$("unload-image-model").disabled=false;$("load-image-model").textContent="Model loaded";imageStatus("Image model loaded. Describe an image and press Generate image.");}catch(e){imageClient=null;$("image-model-state").textContent="Model unavailable";$("image-status-light").className="status-dot red";imageStatus("Could not load image model: "+e.message);$("load-image-model").disabled=false;$("load-image-model").textContent="Retry loading model"}finally{imageLoading=false}}
+async function loadImageModel(){if(engine){imageStatus("Unload the chat model before loading the image model. Only one local model can be active at a time on this device.");return}if(imageLoading||imageClient)return;imageLoading=true;$("load-image-model").disabled=true;$("load-image-model").textContent="Loading…";imageStatus("Checking WebGPU and preparing the image model…");try{if(!navigator.gpu)throw Error("WebGPU is unavailable in this browser. Image generation requires a compatible browser and GPU.");const {Txt2ImgWorkerClient}=await import("https://esm.sh/web-txt2img@0.3.1?external=@xenova/transformers");imageClient=Txt2ImgWorkerClient.createDefault();const loaded=await imageClient.load("sd-turbo",{backendPreference:["webgpu"],tokenizerProvider:async()=>{const {AutoTokenizer,env}=await import("https://esm.sh/@xenova/transformers@2.17.2");env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;const tok=await AutoTokenizer.from_pretrained("Xenova/clip-vit-base-patch16");tok.pad_token_id=0;return (value,opts)=>tok(value,opts)}},p=>imageProgress(p,"Downloading image model…"));if(!loaded?.ok)throw Error(loaded?.message||"Image model could not be loaded.");$("image-model-state").textContent="Image model ready";$("image-status-light").className="status-dot green";$("image-status-detail").textContent="Ready · SD-Turbo";$("generate-image").disabled=false;$("unload-image-model").disabled=false;$("load-image-model").textContent="Model loaded";imageStatus("Image model loaded. Describe an image and press Generate image.");}catch(e){imageClient=null;$("image-model-state").textContent="Model unavailable";$("image-status-light").className="status-dot red";imageStatus("Could not load image model: "+e.message);$("load-image-model").disabled=false;$("load-image-model").textContent="Retry loading model"}finally{imageLoading=false}}
 $("load-image-model").addEventListener("click",loadImageModel);
 $("image-form").addEventListener("submit",async e=>{e.preventDefault();const prompt=$("image-prompt").value.trim();if(!prompt||!imageClient||imageGenerating)return;imageGenerating=true;$("generate-image").disabled=true;imageStatus("Generating image…");imageProgress({}, "Starting image generation…");try{const {promise}=imageClient.generate({prompt},p=>imageProgress(p,"Generating…"),{busyPolicy:"reject"});const result=await promise;if(!result?.ok)throw Error(result?.message||result?.reason||"Generation failed.");const url=URL.createObjectURL(result.blob);imageUrls.push(url);const card=document.createElement("article");card.className="generated-image-card";const img=document.createElement("img");img.src=url;img.alt=prompt;const actions=document.createElement("div");actions.className="generated-image-actions";const label=document.createElement("span");label.textContent="Generated in "+(result.timeMs/1000).toFixed(1)+" seconds";const download=document.createElement("a");download.href=url;download.download="ai-generated-image.png";download.textContent="Download image";actions.append(label,download);card.append(img,actions);$("image-output").prepend(card);imageStatus("Image generated. It was created locally on your device.");$("image-progress-wrap").hidden=true}catch(err){imageStatus("Image generation failed: "+err.message)}finally{imageGenerating=false;$("generate-image").disabled=!imageClient}}
 );
@@ -63,9 +63,11 @@ async function loadModel(){
  button.disabled=true;button.textContent="Loading…";
  $("model-state").textContent="Preparing lightweight local model";
  $("status").textContent="Starting the lightweight local model loader…";
+  // Free the image model first; two local models can exceed mobile browser memory.
  // Smaller quantized model reduces peak memory use during download and WASM initialization on mobile browsers.
  const modelId="onnx-community/SmolLM2-135M-Instruct-ONNX-MHA";
  try{
+  if(imageClient){$("status").textContent="Freeing image-model memory…";await imageClient.unload();imageClient=null;$("image-model-state").textContent="Unloaded to free memory";$("image-status-light").className="status-dot red";$("generate-image").disabled=true;$("load-image-model").disabled=false;$("load-image-model").textContent="Load image model"}
   let lib;
   try{
    lib=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
@@ -145,9 +147,16 @@ function getReplyText(result){
  return "";
 }
 async function generateAnswer(chat,webContext){
- const messages=[{role:"system",content:"You are "+aiName+", a helpful assistant. Answer clearly and honestly. Use reference notes only when relevant. If unsure, say so.\\n\\nREFERENCE NOTES:\\n"+coreContext().slice(0,700)+"\\n\\nWEB RESEARCH:\\n"+(webContext||"None").slice(0,700)}];
- chat.messages.slice(-6).forEach(x=>{if(x.role==="user"||x.role==="assistant")messages.push({role:x.role,content:String(x.content||"").slice(0,700)})});
- const result=await engine(messages,{max_new_tokens:128,temperature:0.7,top_p:0.9,repetition_penalty:1.12,do_sample:true,return_full_text:false});
+ // Keep the prompt deliberately short to limit the ONNX KV cache on mobile.
+ const messages=[{role:"system",content:"You are "+aiName+", a helpful assistant. Answer clearly and briefly. Be honest when unsure. Reference notes: "+coreContext().slice(0,250)+" Web research: "+(webContext||"None").slice(0,250)}];
+ chat.messages.slice(-4).forEach(x=>{if(x.role==="user"||x.role==="assistant")messages.push({role:x.role,content:String(x.content||"").slice(0,350)})});
+ const result=await engine(messages,{
+  max_new_tokens:48,
+  num_beams:1,
+  do_sample:false,
+  repetition_penalty:1.05,
+  return_full_text:false
+ });
  const answer=getReplyText(result).trim();
  if(!answer)throw Error("The local model returned an empty answer.");
  return answer;
