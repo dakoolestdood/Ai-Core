@@ -62,47 +62,49 @@ async function loadModel(){
  const button=$("load-model");
  button.disabled=true;button.textContent="Loading…";
  $("model-state").textContent="Preparing local model";
- $("status").textContent="Starting the CPU-compatible model loader…";
+ $("status").textContent="Starting the local model loader…";
  const modelId="onnx-community/Tiny-LLM-ONNX";
  try{
   let lib;
   try{
    lib=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
-  }catch(first){
-   $("status").textContent="Main library CDN unavailable; trying backup…";
+  }catch(primaryError){
+   $("status").textContent="Primary library host unavailable; switching host…";
    lib=await import("https://esm.sh/@huggingface/transformers@3.8.1?bundle");
   }
   const {pipeline,env}=lib;
+  if(!pipeline||!env)throw Error("The model library loaded without its pipeline exports.");
   env.allowLocalModels=false;
   env.allowRemoteModels=true;
-  env.backends.onnx.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/";
+  env.useBrowserCache=true;
+  env.useWasmCache=true;
   env.backends.onnx.wasm.numThreads=1;
-  const onProgress=(p)=>{
-   if(p.status==="progress"&&Number.isFinite(p.progress)){
-    $("status").textContent="Downloading model files · "+Math.round(p.progress)+"%";
-   }else if(p.status==="initiate"){
-    $("status").textContent="Downloading "+(p.file||"model file")+"…";
-   }else if(p.status==="done"){
-    $("status").textContent="Downloaded "+(p.file||"a model file")+"; preparing…";
-   }else if(p.status==="ready"){
-    $("status").textContent="Preparing the AI engine…";
+  // Let Transformers.js use its own matching ONNX Runtime WASM files.
+  const onProgress=p=>{
+   if(p?.status==="progress"&&Number.isFinite(p.progress)){
+    $("status").textContent="Downloading "+(p.file||"model file")+" · "+Math.round(p.progress)+"%";
+   }else if(p?.status==="initiate"){
+    $("status").textContent="Starting download: "+(p.file||"model file")+"…";
+   }else if(p?.status==="done"){
+    $("status").textContent="Downloaded "+(p.file||"model file")+"; preparing…";
+   }else if(p?.status==="ready"){
+    $("status").textContent="Preparing the local AI engine…";
    }else{
-    $("status").textContent="Loading local model…";
+    $("status").textContent="Loading local model files…";
    }
   };
-  $("status").textContent="Connecting to Hugging Face…";
-  const check=await fetch("https://huggingface.co/"+modelId+"/resolve/main/config.json",{mode:"cors",cache:"no-store"});
-  if(!check.ok)throw Error("Model config request failed: HTTP "+check.status);
-  const config=await check.json();
-  if(!config.model_type)throw Error("The model configuration is invalid.");
-  $("status").textContent="Downloading the ultra-small 10M-parameter CPU model. Keep this tab open…";
-  engine=await pipeline("text-generation",modelId,{
-   device:"wasm",
+  $("status").textContent="Connecting to the model repository…";
+  // Do not make a separate config.json request: the pipeline resolves and validates
+  // the model files itself, avoiding an unnecessary preflight request that can fail
+  // independently of the actual model download.
+  const loaded=await pipeline("text-generation",modelId,{
    dtype:"q4",
    progress_callback:onProgress
   });
-  $("model-state").textContent="Tiny local model ready";
-  $("status").textContent="Ready · Tiny-LLM 10M · CPU/WASM";
+  if(typeof loaded!=="function")throw Error("The model downloaded, but the text-generation pipeline did not initialize.");
+  engine=loaded;
+  $("model-state").textContent="Local model ready";
+  $("status").textContent="Ready · Tiny-LLM · CPU/WASM";
   button.hidden=true;
   $("message-input").disabled=false;
   $("send-button").disabled=false;
@@ -110,8 +112,13 @@ async function loadModel(){
  }catch(e){
   engine=null;
   $("model-state").textContent="Model unavailable";
-  const detail=String(e?.message||e||"Unknown error");
-  $("status").textContent="MODEL LOAD ERROR: "+detail.slice(0,500);
+  let detail=String(e?.message||e||"Unknown error");
+  if(/fetch|network|load failed|failed to fetch|cors/i.test(detail)){
+   detail+=" Check the connection, then retry; model files are hosted by Hugging Face.";
+  }else if(/wasm|onnx|runtime/i.test(detail)){
+   detail+=" The browser could not initialize the CPU runtime. Close other heavy tabs and retry.";
+  }
+  $("status").textContent="MODEL LOAD ERROR: "+detail.slice(0,650);
   button.disabled=false;
   button.textContent="Retry model download";
   console.error("Ai Core model load failed:",e);
