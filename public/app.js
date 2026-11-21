@@ -63,7 +63,7 @@ async function loadModel(){
  button.disabled=true;button.textContent="Loading…";
  $("model-state").textContent="Preparing local model";
  $("status").textContent="Starting the local model loader…";
- const modelId="onnx-community/Tiny-LLM-ONNX";
+ const modelId="onnx-community/Qwen2.5-0.5B-Instruct";
  try{
   let lib;
   try{
@@ -99,7 +99,7 @@ async function loadModel(){
   if(typeof generator!=="function")throw Error("The text-generation pipeline did not initialize correctly.");
   engine=generator;
   $("model-state").textContent="Local model ready";
-  $("status").textContent="Ready · Tiny-LLM ONNX · CPU/WASM";
+  $("status").textContent="Ready · Qwen2.5-0.5B-Instruct · CPU/WASM";
   button.hidden=true;
   $("message-input").disabled=false;
   $("send-button").disabled=false;
@@ -141,12 +141,10 @@ function getReplyText(result){
  return "";
 }
 async function generateAnswer(chat,webContext){
- const recent=chat.messages.slice(-3).map(x=>(x.role==="assistant"?"Assistant: ":"User: ")+String(x.content||"").slice(0,300)).join("\n");
- const prompt="You are "+aiName+", a helpful assistant. Answer clearly and honestly. Use the reference notes only when relevant. If unsure, say so.\n\nREFERENCE NOTES:\n"+coreContext().slice(0,700)+"\n\nWEB RESEARCH:\n"+(webContext||"None") .slice(0,700)+"\n\nCONVERSATION:\n"+recent+"\nAssistant:";
- const result=await engine(prompt,{max_new_tokens:72,temperature:0.7,top_p:0.9,repetition_penalty:1.12,do_sample:true,return_full_text:false});
- let answer=getReplyText(result).trim();
- if(answer.startsWith(prompt))answer=answer.slice(prompt.length).trim();
- answer=answer.replace(/^(?:Assistant:|assistant)\\s*/i,"").trim();
+ const messages=[{role:"system",content:"You are "+aiName+", a helpful assistant. Answer clearly and honestly. Use reference notes only when relevant. If unsure, say so.\\n\\nREFERENCE NOTES:\\n"+coreContext().slice(0,700)+"\\n\\nWEB RESEARCH:\\n"+(webContext||"None").slice(0,700)}];
+ chat.messages.slice(-6).forEach(x=>{if(x.role==="user"||x.role==="assistant")messages.push({role:x.role,content:String(x.content||"").slice(0,700)})});
+ const result=await engine(messages,{max_new_tokens:128,temperature:0.7,top_p:0.9,repetition_penalty:1.12,do_sample:true,return_full_text:false});
+ const answer=getReplyText(result).trim();
  if(!answer)throw Error("The local model returned an empty answer.");
  return answer;
 }
