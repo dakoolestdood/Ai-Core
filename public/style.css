@@ -54,3 +54,21 @@ body{background:radial-gradient(ellipse at 50% -20%,#29224d 0,transparent 48%),v
 .file-button{display:inline-flex;align-items:center;cursor:pointer}
 .secondary-button{background:#282542;border-color:#47416d}
 @media(max-width:760px){.history-delete{opacity:1}.icon-picker{align-items:flex-start}.icon-picker-controls{gap:8px}}
+
+
+/* Layout fix: keep the header from covering tab content, especially on narrow screens. */
+.topbar{position:relative;top:auto;z-index:1;flex-shrink:0}
+.workspace{position:relative;overflow:hidden;min-width:0}
+.view{box-sizing:border-box;min-width:0}
+.core-view{height:100%;overflow-y:auto;overscroll-behavior:contain}
+.customize-view .customize-panel{width:100%;max-width:760px;margin:0 auto 24px}
+.customize-view .stack input,.customize-view .stack textarea{width:100%;min-width:0}
+.customize-view .icon-picker-controls{flex:1}
+@media(max-width:760px){
+  .topbar{gap:8px;overflow:hidden}
+  .tabs{flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;gap:2px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;white-space:nowrap;padding-left:10px;padding-right:10px}
+  .customize-view{padding:18px 12px 30px}
+  .customize-view .customize-panel{padding:15px}
+}
