@@ -72,14 +72,13 @@ async function loadModel(){
    $("status").textContent="Primary library host unavailable; switching host…";
    lib=await import("https://esm.sh/@huggingface/transformers@3.8.1?bundle");
   }
-  const {pipeline,AutoTokenizer,env}=lib;
-  if(!pipeline||!AutoTokenizer||!env)throw Error("The model library loaded without its required exports.");
+  const {AutoModelForCausalLM,AutoTokenizer,env}=lib;
+  if(!AutoModelForCausalLM||!AutoTokenizer||!env)throw Error("Transformers.js did not provide its model and tokenizer loaders.");
   env.allowLocalModels=false;
   env.allowRemoteModels=true;
   env.useBrowserCache=true;
   env.useWasmCache=true;
   env.backends.onnx.wasm.numThreads=1;
-  // Let Transformers.js use its own matching ONNX Runtime WASM files.
   const onProgress=p=>{
    if(p?.status==="progress"&&Number.isFinite(p.progress)){
     $("status").textContent="Downloading "+(p.file||"model file")+" · "+Math.round(p.progress)+"%";
@@ -87,29 +86,42 @@ async function loadModel(){
     $("status").textContent="Starting download: "+(p.file||"model file")+"…";
    }else if(p?.status==="done"){
     $("status").textContent="Downloaded "+(p.file||"model file")+"; preparing…";
-   }else if(p?.status==="ready"){
-    $("status").textContent="Preparing the local AI engine…";
    }else{
     $("status").textContent="Loading local model files…";
    }
   };
-  $("status").textContent="Loading the model's matching tokenizer…";
-  // The ONNX conversion repository contains model weights but omits tokenizer files.
-  // Load the original model's tokenizer explicitly instead of requesting missing files.
+  // These are deliberately loaded separately: the ONNX repository has model
+  // weights/config, while the original repository has the matching tokenizer.
+  $("status").textContent="Loading tokenizer files…";
   const tokenizer=await AutoTokenizer.from_pretrained("arnir0/Tiny-LLM",{
    progress_callback:onProgress
   });
-  $("status").textContent="Loading the 10M-parameter ONNX model…";
-  const loaded=await pipeline("text-generation",modelId,{
-   tokenizer,
+  $("status").textContent="Loading ONNX model weights…";
+  const model=await AutoModelForCausalLM.from_pretrained(modelId,{
    device:"wasm",
    dtype:"q4",
    progress_callback:onProgress
   });
-  if(typeof loaded!=="function")throw Error("The model downloaded, but the text-generation pipeline did not initialize.");
+  // Adapt the separately loaded tokenizer + model to Ai Core's existing interface.
+  const loaded=async(prompt,options={})=>{
+   const encoded=await tokenizer(prompt,{
+    truncation:true,
+    max_length:900,
+    return_tensor:true
+   });
+   const generated=await model.generate(encoded.input_ids,{
+    max_new_tokens:options.max_new_tokens??72,
+    temperature:options.temperature??0.7,
+    top_p:options.top_p??0.9,
+    repetition_penalty:options.repetition_penalty??1.12,
+    do_sample:options.do_sample??true
+   });
+   return [{generated_text:tokenizer.decode(generated[0],{skip_special_tokens:true})}];
+  };
+  if(typeof loaded!=="function")throw Error("The local model and tokenizer did not initialize.");
   engine=loaded;
   $("model-state").textContent="Local model ready";
-  $("status").textContent="Ready · Tiny-LLM · CPU/WASM";
+  $("status").textContent="Ready · Tiny-LLM ONNX · CPU/WASM";
   button.hidden=true;
   $("message-input").disabled=false;
   $("send-button").disabled=false;
