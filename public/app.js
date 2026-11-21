@@ -58,38 +58,50 @@ async function loadPublic(){try{const r=await fetch("/learned.json?"+Date.now(),
 function sensitive(s){return /(api[_ -]?key|secret[_ -]?key|password|passwd|authorization:\s*bearer|-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{16,}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:\+?\d[\d ().-]{8,}\d)\b)/i.test(s)}
 async function loadModel(){
  if(loading||engine)return;
- loading=true;$("load-model").disabled=true;$("load-model").textContent="Loading…";$("model-state").textContent="Preparing small local model";$("status").textContent="Starting model loader…";
+ loading=true;$("load-model").disabled=true;$("load-model").textContent="Loading…";$("model-state").textContent="Checking model connection";$("status").textContent="Checking access to the model files…";
  let activeDevice="wasm",modelId="onnx-community/SmolLM2-135M-Instruct-ONNX";
  try{
-  const {pipeline,env}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+  let transformers;
+  try{
+   transformers=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+  }catch(cdnError){
+   $("status").textContent="Primary library CDN failed. Trying backup CDN…";
+   transformers=await import("https://esm.sh/@huggingface/transformers@3.8.1");
+  }
+  const {pipeline,env}=transformers;
   env.allowLocalModels=false;env.allowRemoteModels=true;env.useBrowserCache=true;
+  if(env.backends?.onnx?.wasm)env.backends.onnx.wasm.numThreads=1;
+  const configUrl="https://huggingface.co/"+modelId+"/resolve/main/config.json";
+  const check=await fetch(configUrl,{mode:"cors",cache:"no-store"});
+  if(!check.ok)throw Error("Cannot reach Hugging Face model files (HTTP "+check.status+"). Check your connection or try again later.");
+  await check.json();
   const onProgress=(p)=>{
    if(p.status==="progress"&&Number.isFinite(p.progress)){
-    const pct=Math.round(p.progress);
-    $("status").textContent="Downloading "+modelId+" · "+pct+"%";
+    $("status").textContent="Downloading model · "+Math.round(p.progress)+"%";
    }else if(p.status==="initiate"){
-    $("status").textContent="Downloading "+(p.file||"model files")+"…";
+    $("status").textContent="Starting download: "+(p.file||"model files");
    }else if(p.status==="done"){
-    $("status").textContent="Downloaded "+(p.file||"a model file")+". Preparing it…";
+    $("status").textContent="Downloaded "+(p.file||"a file")+". Preparing…";
    }else if(p.status==="ready"){
-    $("status").textContent="Preparing the local inference engine…";
+    $("status").textContent="Preparing local AI engine…";
+   }else if(p.status==="download"){
+    $("status").textContent="Downloading model files…";
    }
   };
   let adapter=null;
-  if(navigator.gpu){
-   try{adapter=await navigator.gpu.requestAdapter()}catch(e){adapter=null}
-  }
+  if(navigator.gpu){try{adapter=await navigator.gpu.requestAdapter()}catch(e){adapter=null}}
   if(adapter){
    activeDevice="webgpu";
    try{
     engine=await pipeline("text-generation",modelId,{device:"webgpu",dtype:"q4f16",progress_callback:onProgress});
    }catch(gpuError){
     engine=null;activeDevice="wasm";
-    $("status").textContent="This device could not start WebGPU. Switching to the smaller CPU/WASM model…";
+    $("status").textContent="WebGPU is unsupported on this device. Retrying with CPU mode…";
    }
   }
   if(!engine){
    activeDevice="wasm";
+   $("status").textContent="Loading the CPU version. Keep this page open while it downloads…";
    engine=await pipeline("text-generation",modelId,{device:"wasm",dtype:"q4",progress_callback:onProgress});
   }
   $("model-state").textContent="Local model ready";
@@ -98,7 +110,7 @@ async function loadModel(){
  }catch(e){
   engine=null;$("model-state").textContent="Model unavailable";
   const detail=String(e?.message||e||"Unknown error");
-  $("status").textContent="Model failed: "+detail.slice(0,500)+" · Tap Retry. If it fails again, send me this exact error.";
+  $("status").textContent="Load failed: "+detail.slice(0,400)+". Keep this exact error and send it to support.";
   $("load-model").disabled=false;$("load-model").textContent="Retry model download";
   console.error("Ai Core model load failed:",e);
  }finally{loading=false}
