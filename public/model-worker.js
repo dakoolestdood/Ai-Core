@@ -26,7 +26,7 @@ self.onmessage = async (event) => {
         env.backends.onnx.wasm.numThreads = 1;
         env.backends.onnx.wasm.proxy = false;
       }
-      generator = await pipeline("text-generation", "onnx-community/SmolLM2-135M-Instruct-ONNX-MHA", {
+      generator = await pipeline("text-generation", "onnx-community/SmolLM2-360M-Instruct-ONNX", {
         device: "wasm",
         dtype: "q4",
         progress_callback: (p) => {
@@ -47,7 +47,7 @@ self.onmessage = async (event) => {
       busy = true;
       try {
         const result = await generator(messages, {
-          max_new_tokens: 32,
+          max_new_tokens: 64,
           num_beams: 1,
           do_sample: false,
           repetition_penalty: 1.03,
