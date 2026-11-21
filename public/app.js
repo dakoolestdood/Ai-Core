@@ -66,7 +66,7 @@ function workerRequest(type,payload={},onProgress){
 }
 function startModelWorker(){
  if(modelWorker)return;
- modelWorker=new Worker("/model-worker.js?v=2",{type:"module"});
+ modelWorker=new Worker("/model-worker.js?v=3",{type:"module"});
  modelWorker.onmessage=e=>{
   const data=e.data||{},pending=workerPending.get(data.id);if(!pending)return;
   if(data.type==="progress"){if(pending.onProgress)pending.onProgress(data.text);return}
@@ -84,11 +84,11 @@ function startModelWorker(){
 async function loadModel(){
  if(loading||engine)return;
  loading=true;const button=$("load-model");button.disabled=true;button.textContent="Loading…";
- $("model-state").textContent="Preparing lightweight local model";$("status").textContent="Starting the background model worker…";
+ $("model-state").textContent="Preparing SmolLM2-360M-Instruct local model";$("status").textContent="Starting the background model worker…";
  try{
   if(imageClient){$("status").textContent="Freeing image-model memory…";await imageClient.unload();imageClient=null;$("image-model-state").textContent="Unloaded to free memory";$("image-status-light").className="status-dot red";$("generate-image").disabled=true;$("load-image-model").disabled=false;$("load-image-model").textContent="Load image model"}
   startModelWorker();await workerRequest("load",{},text=>{$("status").textContent=text});
-  engine=true;$("model-state").textContent="Lightweight local model ready";$("status").textContent="Ready · SmolLM2-135M-Instruct · Background CPU/WASM";
+  engine=true;$("model-state").textContent="SmolLM2-360M-Instruct ready";$("status").textContent="Ready · SmolLM2-360M-Instruct · Background CPU/WASM";
   button.hidden=true;$("message-input").disabled=false;$("send-button").disabled=false;applyName();
  }catch(e){
   engine=null;if(modelWorker){modelWorker.terminate();modelWorker=null}
