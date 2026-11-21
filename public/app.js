@@ -64,7 +64,7 @@ async function loadModel(){
  $("model-state").textContent="Preparing lightweight local model";
  $("status").textContent="Starting the lightweight local model loader…";
  // Smaller quantized model reduces peak memory use during download and WASM initialization on mobile browsers.
- const modelId="onnx-community/SmolLM2-135M-Instruct";
+ const modelId="onnx-community/SmolLM2-135M-Instruct-ONNX-MHA";
  try{
   let lib;
   try{
