@@ -30,8 +30,9 @@ module.exports = async function handler(req, res) {
     return send(res, 401, { error: { message: "Invalid or missing Ai Core API key.", type: "authentication_error" } });
   }
 
-  const upstream = process.env.MODEL_API_URL;
-  if (!upstream) return send(res, 503, { error: { message: "API key authentication is ready, but no server-side Qwen inference endpoint is configured yet.", type: "model_backend_not_configured" } });
+  const upstream = process.env.MODEL_API_URL || "https://router.huggingface.co/v1/chat/completions";
+  const modelToken = process.env.MODEL_API_KEY;
+  if (!modelToken) return send(res, 503, { error: { message: "Add MODEL_API_KEY to Vercel: it must be a Hugging Face token with Inference Providers permission. Your Ai Core API key is separate.", type: "model_backend_not_configured" } });
 
   let body = req.body;
   if (typeof body === "string") {
@@ -46,12 +47,12 @@ module.exports = async function handler(req, res) {
 
   try {
     const headers = { "Content-Type": "application/json" };
-    if (process.env.MODEL_API_KEY) headers.Authorization = "Bearer " + process.env.MODEL_API_KEY;
+    headers.Authorization = "Bearer " + modelToken;
     const upstreamResponse = await fetch(upstream, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        model: body.model || process.env.MODEL_NAME || "Qwen2.5-0.5B-Instruct",
+        model: body.model || process.env.MODEL_NAME || "Qwen/Qwen2.5-0.5B-Instruct",
         messages: body.messages,
         max_tokens: Math.min(Math.max(Number(body.max_tokens) || 256, 1), 1024),
         temperature: Number.isFinite(Number(body.temperature)) ? Math.min(Math.max(Number(body.temperature), 0), 2) : 0.7,
