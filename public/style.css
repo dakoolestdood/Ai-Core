@@ -72,3 +72,59 @@ body{background:radial-gradient(ellipse at 50% -20%,#29224d 0,transparent 48%),v
   .customize-view{padding:18px 12px 30px}
   .customize-view .customize-panel{padding:15px}
 }
+
+
+/* Mobile viewport fit: compact two-row header and constrain the chat layout. */
+.shell{width:100%;min-width:0;min-height:0;overflow:hidden}
+.workspace{min-width:0;min-height:0;height:0;flex:1}
+.chat-view{min-width:0;min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
+.chat-main{min-width:0;min-height:0;width:100%;max-width:1000px}
+.messages{min-width:0;min-height:0;overscroll-behavior:contain}
+.composer{min-width:0;max-width:100%;gap:8px}
+.composer textarea{min-width:0;width:0;flex:1 1 0}
+.chat-footer{min-width:0;gap:8px;flex-wrap:wrap}
+#status{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .topbar{
+    height:auto;min-height:0;flex:none;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    grid-template-rows:40px 42px;gap:4px 8px;
+    padding:5px 10px 0;overflow:hidden;
+  }
+  .brand{grid-column:1;grid-row:1;min-width:0;gap:7px}
+  .brand b{font-size:15px}
+  .brand-mark{width:30px;height:30px}
+  .top-actions{grid-column:2;grid-row:1;margin:0;min-width:0}
+  .tabs{
+    grid-column:1 / -1;grid-row:2;
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+    width:100%;min-width:0;height:42px;margin:0;gap:2px;
+    overflow:hidden;align-items:stretch;
+  }
+  .tab{
+    min-width:0;width:100%;height:42px;
+    padding:0 3px;font-size:clamp(10px,3.2vw,13px);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .workspace{height:0;min-height:0;overflow:hidden}
+  .chat-view{height:100%;min-height:0;min-width:0}
+  .chat-main{
+    height:100%;min-height:0;min-width:0;
+    width:100%;max-width:none;margin:0;padding:0 10px;
+  }
+  .messages{padding:14px 0 12px;gap:15px}
+  .message{max-width:96%;min-width:0}
+  .bubble{min-width:0;max-width:100%}
+  .composer{padding:8px 9px 27px;border-radius:14px}
+  .composer textarea{min-height:40px;max-height:110px}
+  .composer-hint{left:11px;bottom:5px;font-size:9px}
+  .send-button{width:36px;height:36px}
+  .chat-footer{padding:7px 2px 8px;font-size:10px}
+}
+@media(max-width:360px){
+  .topbar{padding-left:7px;padding-right:7px}
+  .tab{font-size:10px;padding:0 1px}
+  .chat-main{padding-left:7px;padding-right:7px}
+  .chat-footer{font-size:9px}
+  .composer{gap:5px}
+}
