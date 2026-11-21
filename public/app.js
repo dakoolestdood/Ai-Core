@@ -72,8 +72,8 @@ async function loadModel(){
    $("status").textContent="Primary library host unavailable; switching host…";
    lib=await import("https://esm.sh/@huggingface/transformers@3.8.1?bundle");
   }
-  const {pipeline,env}=lib;
-  if(!pipeline||!env)throw Error("The model library loaded without its pipeline exports.");
+  const {pipeline,AutoTokenizer,env}=lib;
+  if(!pipeline||!AutoTokenizer||!env)throw Error("The model library loaded without its required exports.");
   env.allowLocalModels=false;
   env.allowRemoteModels=true;
   env.useBrowserCache=true;
@@ -93,11 +93,16 @@ async function loadModel(){
     $("status").textContent="Loading local model files…";
    }
   };
-  $("status").textContent="Connecting to the model repository…";
-  // Do not make a separate config.json request: the pipeline resolves and validates
-  // the model files itself, avoiding an unnecessary preflight request that can fail
-  // independently of the actual model download.
+  $("status").textContent="Loading the model's matching tokenizer…";
+  // The ONNX conversion repository contains model weights but omits tokenizer files.
+  // Load the original model's tokenizer explicitly instead of requesting missing files.
+  const tokenizer=await AutoTokenizer.from_pretrained("arnir0/Tiny-LLM",{
+   progress_callback:onProgress
+  });
+  $("status").textContent="Loading the 10M-parameter ONNX model…";
   const loaded=await pipeline("text-generation",modelId,{
+   tokenizer,
+   device:"wasm",
    dtype:"q4",
    progress_callback:onProgress
   });
@@ -116,7 +121,7 @@ async function loadModel(){
   if(/fetch|network|load failed|failed to fetch|cors/i.test(detail)){
    detail+=" Check the connection, then retry; model files are hosted by Hugging Face.";
   }else if(/wasm|onnx|runtime/i.test(detail)){
-   detail+=" The browser could not initialize the CPU runtime. Close other heavy tabs and retry.";
+   detail+=" The local CPU runtime could not initialize. This should not require closing your other tabs.";
   }
   $("status").textContent="MODEL LOAD ERROR: "+detail.slice(0,650);
   button.disabled=false;
