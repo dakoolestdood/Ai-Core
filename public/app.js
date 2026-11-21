@@ -61,9 +61,10 @@ async function loadModel(){
  loading=true;
  const button=$("load-model");
  button.disabled=true;button.textContent="Loading…";
- $("model-state").textContent="Preparing local model";
- $("status").textContent="Starting the local model loader…";
- const modelId="onnx-community/Qwen2.5-0.5B-Instruct";
+ $("model-state").textContent="Preparing lightweight local model";
+ $("status").textContent="Starting the lightweight local model loader…";
+ // Smaller quantized model reduces peak memory use during download and WASM initialization on mobile browsers.
+ const modelId="onnx-community/SmolLM2-135M-Instruct";
  try{
   let lib;
   try{
@@ -78,7 +79,10 @@ async function loadModel(){
   env.allowRemoteModels=true;
   env.useBrowserCache=true;
   env.useWasmCache=true;
-  if(env.backends?.onnx?.wasm)env.backends.onnx.wasm.numThreads=1;
+  if(env.backends?.onnx?.wasm){
+   env.backends.onnx.wasm.numThreads=1;
+   env.backends.onnx.wasm.proxy=false;
+  }
   const onProgress=p=>{
    if(p?.status==="progress"&&Number.isFinite(p.progress)){
     $("status").textContent="Downloading "+(p.file||"model file")+" · "+Math.round(p.progress)+"%";
@@ -87,10 +91,10 @@ async function loadModel(){
    }else if(p?.status==="done"){
     $("status").textContent="Downloaded "+(p.file||"model file")+"; preparing…";
    }else{
-    $("status").textContent="Loading model files…";
+    $("status").textContent="Loading lightweight model files…";
    }
   };
-  $("status").textContent="Loading the model and its matching tokenizer…";
+  $("status").textContent="Loading lightweight model and tokenizer…";
   const generator=await pipeline("text-generation",modelId,{
    device:"wasm",
    dtype:"q4",
@@ -98,8 +102,8 @@ async function loadModel(){
   });
   if(typeof generator!=="function")throw Error("The text-generation pipeline did not initialize correctly.");
   engine=generator;
-  $("model-state").textContent="Local model ready";
-  $("status").textContent="Ready · Qwen2.5-0.5B-Instruct · CPU/WASM";
+  $("model-state").textContent="Lightweight local model ready";
+  $("status").textContent="Ready · SmolLM2-135M-Instruct · CPU/WASM";
   button.hidden=true;
   $("message-input").disabled=false;
   $("send-button").disabled=false;
