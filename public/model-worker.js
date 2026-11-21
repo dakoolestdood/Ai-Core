@@ -47,10 +47,10 @@ self.onmessage = async (event) => {
       busy = true;
       try {
         const result = await generator(messages, {
-          max_new_tokens: 48,
+          max_new_tokens: 40,
           num_beams: 1,
           do_sample: false,
-          repetition_penalty: 1.05,
+          repetition_penalty: 1.03,
           return_full_text: false
         });
         const value = result?.[0]?.generated_text;
