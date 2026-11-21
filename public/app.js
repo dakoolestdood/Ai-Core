@@ -72,13 +72,13 @@ async function loadModel(){
    $("status").textContent="Primary library host unavailable; switching host…";
    lib=await import("https://esm.sh/@huggingface/transformers@3.8.1?bundle");
   }
-  const {AutoModelForCausalLM,AutoTokenizer,env}=lib;
-  if(!AutoModelForCausalLM||!AutoTokenizer||!env)throw Error("Transformers.js did not provide its model and tokenizer loaders.");
+  const {pipeline,env}=lib;
+  if(typeof pipeline!=="function"||!env)throw Error("Transformers.js did not provide its text-generation pipeline.");
   env.allowLocalModels=false;
   env.allowRemoteModels=true;
   env.useBrowserCache=true;
   env.useWasmCache=true;
-  env.backends.onnx.wasm.numThreads=1;
+  if(env.backends?.onnx?.wasm)env.backends.onnx.wasm.numThreads=1;
   const onProgress=p=>{
    if(p?.status==="progress"&&Number.isFinite(p.progress)){
     $("status").textContent="Downloading "+(p.file||"model file")+" · "+Math.round(p.progress)+"%";
@@ -87,39 +87,17 @@ async function loadModel(){
    }else if(p?.status==="done"){
     $("status").textContent="Downloaded "+(p.file||"model file")+"; preparing…";
    }else{
-    $("status").textContent="Loading local model files…";
+    $("status").textContent="Loading model files…";
    }
   };
-  // These are deliberately loaded separately: the ONNX repository has model
-  // weights/config, while the original repository has the matching tokenizer.
-  $("status").textContent="Loading tokenizer files…";
-  const tokenizer=await AutoTokenizer.from_pretrained("arnir0/Tiny-LLM",{
-   progress_callback:onProgress
-  });
-  $("status").textContent="Loading ONNX model weights…";
-  const model=await AutoModelForCausalLM.from_pretrained(modelId,{
+  $("status").textContent="Loading the model and its matching tokenizer…";
+  const generator=await pipeline("text-generation",modelId,{
    device:"wasm",
    dtype:"q4",
    progress_callback:onProgress
   });
-  // Adapt the separately loaded tokenizer + model to Ai Core's existing interface.
-  const loaded=async(prompt,options={})=>{
-   const encoded=await tokenizer(prompt,{
-    truncation:true,
-    max_length:900,
-    return_tensor:true
-   });
-   const generated=await model.generate(encoded.input_ids,{
-    max_new_tokens:options.max_new_tokens??72,
-    temperature:options.temperature??0.7,
-    top_p:options.top_p??0.9,
-    repetition_penalty:options.repetition_penalty??1.12,
-    do_sample:options.do_sample??true
-   });
-   return [{generated_text:tokenizer.decode(generated[0],{skip_special_tokens:true})}];
-  };
-  if(typeof loaded!=="function")throw Error("The local model and tokenizer did not initialize.");
-  engine=loaded;
+  if(typeof generator!=="function")throw Error("The text-generation pipeline did not initialize correctly.");
+  engine=generator;
   $("model-state").textContent="Local model ready";
   $("status").textContent="Ready · Tiny-LLM ONNX · CPU/WASM";
   button.hidden=true;
@@ -129,19 +107,13 @@ async function loadModel(){
  }catch(e){
   engine=null;
   $("model-state").textContent="Model unavailable";
-  let detail=String(e?.message||e||"Unknown error");
-  if(/fetch|network|load failed|failed to fetch|cors/i.test(detail)){
-   detail+=" Check the connection, then retry; model files are hosted by Hugging Face.";
-  }else if(/wasm|onnx|runtime/i.test(detail)){
-   detail+=" The local CPU runtime could not initialize. This should not require closing your other tabs.";
-  }
+  const detail=String(e?.message||e||"Unknown error");
   $("status").textContent="MODEL LOAD ERROR: "+detail.slice(0,650);
   button.disabled=false;
   button.textContent="Retry model download";
-  console.error("Ai Core model load failed:",e);
+  console.error("Ai Core model load failed:",e?.stack||e);
  }finally{loading=false}
-}
-$("load-model").addEventListener("click",loadModel);
+}$("load-model").addEventListener("click",loadModel);
 function shouldSearchWeb(q){
  const s=q.trim().toLowerCase();
  if(!s||/\b(don't search|do not search|offline only|answer from memory)\b/i.test(s))return false;
@@ -171,7 +143,7 @@ function getReplyText(result){
 async function generateAnswer(chat,webContext){
  const recent=chat.messages.slice(-3).map(x=>(x.role==="assistant"?"Assistant: ":"User: ")+String(x.content||"").slice(0,300)).join("\n");
  const prompt="You are "+aiName+", a helpful assistant. Answer clearly and honestly. Use the reference notes only when relevant. If unsure, say so.\n\nREFERENCE NOTES:\n"+coreContext().slice(0,700)+"\n\nWEB RESEARCH:\n"+(webContext||"None") .slice(0,700)+"\n\nCONVERSATION:\n"+recent+"\nAssistant:";
- const result=await engine(prompt,{max_new_tokens:72,temperature:0.7,top_p:0.9,repetition_penalty:1.12,do_sample:true});
+ const result=await engine(prompt,{max_new_tokens:72,temperature:0.7,top_p:0.9,repetition_penalty:1.12,do_sample:true,return_full_text:false});
  let answer=getReplyText(result).trim();
  if(answer.startsWith(prompt))answer=answer.slice(prompt.length).trim();
  answer=answer.replace(/^(?:Assistant:|assistant)\\s*/i,"").trim();
